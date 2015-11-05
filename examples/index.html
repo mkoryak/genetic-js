@@ -35,7 +35,7 @@ genetic.select1 = Genetic.Select1.Tournament2;
 genetic.select2 = Genetic.Select2.Tournament2;
 
 var bops = ['+', '-', '^', '|' , '&', '*'];
-var uops = ['-', 'Math.cos', 'Math.sin', 'Math.tan', 'Math.atan', '~', '~~', '!', '!!', ''];
+var uops = ['-', 'Math.cos', 'Math.sin', 'Math.tan', 'Math.atan', '~', '~~', ''];
 var vars = ['a', 'b'];
 
 var sol =  [0,  1, 2, 3, 10, 1000, -100, -5, -1];
@@ -58,6 +58,8 @@ var pick = function(type){
 		arr = bops;
 	} else if(type == 'u'){
 		arr = uops;
+	}else if(type == 'poop'){
+		arr = ['+', "-", "*"];
 	} else {
 		throw "poop";
 	}
@@ -68,10 +70,10 @@ var pick = function(type){
 genetic.seed = function() {
 
 
-	var len = ~~(Math.random() * 10);
+	var len = 4;
 	var ret = [];
 	for(var i = 0; i < len; i++){
-		ret.push({u: [pick('u'), pick('u')], b: [pick('b'), pick('b')], v: [pick('v'), pick['v']]});
+		ret.push({u: [pick('u'), pick('u')], b: [pick('b'), pick('poop')], v: [pick('v'), pick['v']]});
 	}
 	return ret;
 };
@@ -84,7 +86,6 @@ genetic.mutate = function(entity) {
 	var thing = pickraw(entity);
 	var idx = randidx(thing[place]);
 	thing[place][idx] = pick(place);
-	console.log("new things:",thing[place][idx])
 	return entity;
 };
 
@@ -105,15 +106,25 @@ genetic.crossover = function(mother, father) {
 	
 	return [son, daughter];
 };
-
 var nearness = function nearness(test, sol) {
 	return test.map(function (val, i) {
-		return Math.abs(i - sol.indexOf(val));
-	}).reduce(function (acc, n) {
-		return acc + n;
-	});
+				return Math.abs(i - sol.indexOf(val)) / ((sol.length - 1) / 2);
+			}).reduce(function (acc, n) {
+				return acc + n;
+			}) / (sol.length + 1) - (sol.length % 2 ? 0 : 1 / (sol.length * 10 - 1));
 };
 
+
+var poopIt = function(entity){
+	var r = []
+	for (var i=0;i<entity.length;i++) {
+		var x = entity[i];
+		r.push("("+x.u[0]+"(a)"+ " "+ x.b[0]+" "+  x.u[1]+"(b))");
+	}
+	return "return (" + r[0] +" ? "+r[1]+" : "+r[2]+");";
+
+}
+var small = 10000;
 genetic.fitness = function(entity) {
 	var fitness = 0;
 
@@ -121,21 +132,21 @@ genetic.fitness = function(entity) {
 
 	var i;
 	var ass = "";
-	for (i=0;i<entity.length;++i) {
-		var x = entity[i];
-		var str = "("+x.u[0]+"(a)"+ " "+ x.b[0]+" "+  x.u[1]+"(b))";
-		if(i < entity.length - 1){
-			str += " "+x.b[1]+" "
-		}
-		ass += str;
+	if(entity.length == 0){
+		return 0;
 	}
-	ass = "return (" + (ass || '1') +");";
-	var fn = new Function("a", "b", str);
-	console.log("ass:", ass);
+
+
+	var ass = poopIt(entity);
+	var fn = new Function("a", "b", ass);
+
 	try {
 		test.sort(fn);
 		var balls =  nearness(test, sol); //lazy!!
-		console.log("nearness:", balls, test);
+		if(balls < small) {
+			small = balls;
+			console.log("nearness:", balls, test, ass);
+		}
 		return balls;
 	} catch(e){
 		console.log("bad!", str, e);
@@ -151,11 +162,9 @@ genetic.generation = function(pop, generation, stats) {
 
 genetic.notification = function(pop, generation, stats, isFinished) {
 
-	function lerp(a, b, p) {
-		return a + (b-a)*p;
-	}
+
 	
-	var value = pop[0].entity;
+	var value = poopIt(pop[0].entity);
 	this.last = this.last||value;
 	
 	if (pop != 0 && value == this.last)
@@ -194,10 +203,10 @@ $(document).ready(function () {
 		$("#results tbody").html("");
 		
 		var config = {
-			"iterations": 40000
-			, "size": 250
-			, "crossover": 0.3
-			, "mutation": 0.3
+			"iterations": 3000
+			, "size": 350
+			, "crossover": 0.1
+			, "mutation": 0.5
 			, "skip": 20
 			, "webWorkers": false
 		};
